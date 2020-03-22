@@ -13,9 +13,7 @@ FileUtils.mkdir_p(dir)
 
 # https://stackoverflow.com/questions/1682120/read-a-file-in-chunks-in-ruby
 
-download_url = lambda { |rel_path|
-  "https://raw.githubusercontent.com/#{repo}/master/#{rel_path}"
-}
+download_root = "https://raw.githubusercontent.com/#{repo}/master"
 
 class File
   def each_chunk(chunk_size)
@@ -32,26 +30,25 @@ File.open(src, "rb") do |f|
   }
 end
 
-download_command = (0..file_count - 1).map do |idx|
-  "curl -L #{download_url.call(idx)} > #{idx}"
-end.join("\n")
-
-files_str = (0..file_count - 1).to_a.join(' ')
-
 download_script = <<-EOS
 #!/bin/bash
 
 # usage
-# curl #{download_url.call('download.sh')} | OUTPUT=/path/to/output sh
+# curl #{download_root}/download.sh | OUTPUT=/path/to/output sh
 
 set -ex
 
 dir=$(mktemp -d)
-cd $dir
-#{download_command}
 
-cat #{files_str} > $OUTPUT
+(
+cd $dir
+seq 0 #{file_count - 1} | xargs -n1 -P10 bash -c 'curl -O -s #{download_root}/$0 > $0'
+cat $(seq 0 #{file_count - 1}) > output
+)
+
+mv "${dir}/output" $OUTPUT
 rm -rf $dir
+
 EOS
 
 File.write("#{dir}/download.sh", download_script)
