@@ -14,6 +14,7 @@ FileUtils.mkdir_p(dir)
 # https://stackoverflow.com/questions/1682120/read-a-file-in-chunks-in-ruby
 
 download_root = "https://raw.githubusercontent.com/#{repo}/master"
+download_bin_root = "https://github.com/#{repo}/raw/master"
 
 class File
   def each_chunk(chunk_size)
@@ -26,6 +27,7 @@ file_count = 0
 File.open(src, "rb") do |f|
   f.each_chunk(max_size) { |chunk|
     File.binwrite("#{dir}/#{file_count}", chunk)
+    `xz #{dir}/#{file_count}`
     file_count += 1
   }
 end
@@ -34,7 +36,7 @@ download_script = <<-EOS
 #!/bin/bash
 
 # usage
-# curl #{download_root}/download.sh | OUTPUT=/path/to/output sh
+# curl -L #{download_root}/download.sh | OUTPUT=/path/to/output sh
 
 set -ex
 
@@ -42,7 +44,7 @@ dir=$(mktemp -d)
 
 (
 cd $dir
-seq 0 #{file_count - 1} | xargs -n1 -P10 bash -c 'curl -O -s #{download_root}/$0 > $0'
+seq 0 #{file_count - 1} | xargs -n1 -P10 bash -c 'curl -L #{download_bin_root}/$0.xz | xz -d > $0'
 cat $(seq 0 #{file_count - 1}) > output
 )
 
